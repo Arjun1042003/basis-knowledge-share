@@ -7,6 +7,7 @@ import { LogOut, Plus } from "lucide-react";
 import { toast } from "sonner";
 import KnowledgePostCard from "@/components/KnowledgePostCard";
 import CreatePostDialog from "@/components/CreatePostDialog";
+import PostDetailModal from "@/components/PostDetailModal";
 
 interface KnowledgePost {
   id: string;
@@ -20,12 +21,20 @@ interface KnowledgePost {
   };
 }
 
+interface PostStats {
+  likesCount: number;
+  commentsCount: number;
+  isLiked: boolean;
+}
+
 const Feed = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<KnowledgePost[]>([]);
+  const [postStats, setPostStats] = useState<Record<string, PostStats>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<KnowledgePost | null>(null);
 
   useEffect(() => {
     checkUser();
@@ -71,6 +80,79 @@ const Feed = () => {
       console.error(error);
     } else {
       setPosts(data || []);
+      if (data && user) {
+        fetchPostStats(data.map(p => p.id));
+      }
+    }
+  };
+
+  const fetchPostStats = async (postIds: string[]) => {
+    if (!user) return;
+
+    const stats: Record<string, PostStats> = {};
+
+    for (const postId of postIds) {
+      const { count: likesCount } = await supabase
+        .from("post_likes")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId);
+
+      const { count: commentsCount } = await supabase
+        .from("post_comments")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId);
+
+      const { data: likeData } = await supabase
+        .from("post_likes")
+        .select("id")
+        .eq("post_id", postId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      stats[postId] = {
+        likesCount: likesCount || 0,
+        commentsCount: commentsCount || 0,
+        isLiked: !!likeData,
+      };
+    }
+
+    setPostStats(stats);
+  };
+
+  const handleLike = async (postId: string) => {
+    if (!user) return;
+
+    const currentStats = postStats[postId] || { likesCount: 0, commentsCount: 0, isLiked: false };
+
+    if (currentStats.isLiked) {
+      await supabase
+        .from("post_likes")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", user.id);
+
+      setPostStats({
+        ...postStats,
+        [postId]: {
+          ...currentStats,
+          isLiked: false,
+          likesCount: currentStats.likesCount - 1,
+        },
+      });
+    } else {
+      await supabase.from("post_likes").insert({
+        post_id: postId,
+        user_id: user.id,
+      });
+
+      setPostStats({
+        ...postStats,
+        [postId]: {
+          ...currentStats,
+          isLiked: true,
+          likesCount: currentStats.likesCount + 1,
+        },
+      });
     }
   };
 
@@ -131,7 +213,7 @@ const Feed = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in">
           {posts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">No knowledge posts yet</p>
@@ -141,9 +223,20 @@ const Feed = () => {
               </Button>
             </div>
           ) : (
-            posts.map((post) => (
-              <KnowledgePostCard key={post.id} post={post} />
-            ))
+            posts.map((post) => {
+              const stats = postStats[post.id] || { likesCount: 0, commentsCount: 0, isLiked: false };
+              return (
+                <KnowledgePostCard 
+                  key={post.id} 
+                  post={post}
+                  likesCount={stats.likesCount}
+                  commentsCount={stats.commentsCount}
+                  isLiked={stats.isLiked}
+                  onLike={() => handleLike(post.id)}
+                  onClick={() => setSelectedPost(post)}
+                />
+              );
+            })
           )}
         </div>
       </main>
@@ -154,6 +247,16 @@ const Feed = () => {
         onPostCreated={fetchPosts}
         userId={user?.id || ""}
       />
+
+      {selectedPost && (
+        <PostDetailModal
+          open={!!selectedPost}
+          onOpenChange={(open) => !open && setSelectedPost(null)}
+          post={selectedPost}
+          userId={user?.id || ""}
+          onUpdate={fetchPosts}
+        />
+      )}
     </div>
   );
 };
