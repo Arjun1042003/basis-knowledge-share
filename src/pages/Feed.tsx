@@ -172,30 +172,16 @@ const Feed = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-10">
+      <header className="border-b border-border bg-card sticky top-0 z-10 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <svg
-              className="h-10 w-20"
-              viewBox="0 0 120 50"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect width="120" height="50" rx="4" fill="hsl(var(--primary))" />
-              <text
-                x="60"
-                y="32"
-                textAnchor="middle"
-                fill="white"
-                fontSize="24"
-                fontWeight="bold"
-                fontFamily="Arial, sans-serif"
-              >
-                SAP
-              </text>
-            </svg>
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+              <svg className="h-6 w-6 text-primary-foreground" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L8 8h3v4H8l4 6 4-6h-3V8h3L12 2zm-1 14v6h2v-6h-2z" />
+              </svg>
+            </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">BASIS Community</h1>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">BRISTLECONE</h1>
               <p className="text-sm text-muted-foreground">Knowledge Hub</p>
             </div>
           </div>
