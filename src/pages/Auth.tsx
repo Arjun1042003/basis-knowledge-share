@@ -15,8 +15,18 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const validateEmail = (email: string): boolean => {
+    return email.toLowerCase().endsWith("@bristlecone.com");
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateEmail(email)) {
+      toast.error("Only @bristlecone.com email addresses are allowed");
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -89,11 +99,12 @@ const Auth = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="you@bristlecone.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
+                <p className="text-xs text-muted-foreground">Only @bristlecone.com emails allowed</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
