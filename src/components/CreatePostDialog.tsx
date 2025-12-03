@@ -64,7 +64,7 @@ const CreatePostDialog = ({
         <DialogHeader>
           <DialogTitle>Share Your Knowledge</DialogTitle>
           <DialogDescription>
-            Contribute to the BASIS Community by sharing your technical insights
+            Contribute to BRISTLECONE by sharing your technical insights
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">

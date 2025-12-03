@@ -54,29 +54,10 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-4">
-          <div className="flex justify-center">
-            <svg
-              className="h-16 w-32"
-              viewBox="0 0 120 50"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect width="120" height="50" rx="4" fill="hsl(var(--primary))" />
-              <text
-                x="60"
-                y="32"
-                textAnchor="middle"
-                fill="white"
-                fontSize="24"
-                fontWeight="bold"
-                fontFamily="Arial, sans-serif"
-              >
-                SAP
-              </text>
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">BASIS Community</h1>
-          <p className="text-muted-foreground">Share and discover technical knowledge</p>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            BRISTLECONE
+          </h1>
+          <p className="text-lg text-muted-foreground">Knowledge Sharing Community</p>
         </div>
 
         <Card>
