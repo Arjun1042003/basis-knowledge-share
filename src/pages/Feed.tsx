@@ -168,6 +168,23 @@ const Feed = () => {
     }
   };
 
+  const handleDelete = async (postId: string) => {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+    
+    const { error } = await supabase
+      .from("knowledge_posts")
+      .delete()
+      .eq("id", postId);
+
+    if (error) {
+      toast.error("Failed to delete post");
+      console.error(error);
+    } else {
+      toast.success("Post deleted successfully");
+      fetchPosts();
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast.success("Signed out successfully");
@@ -231,11 +248,13 @@ const Feed = () => {
                 <KnowledgePostCard 
                   key={post.id} 
                   post={post}
+                  currentUserId={user?.id}
                   likesCount={stats.likesCount}
                   commentsCount={stats.commentsCount}
                   isLiked={stats.isLiked}
                   onLike={() => handleLike(post.id)}
                   onClick={() => setSelectedPost(post)}
+                  onDelete={() => handleDelete(post.id)}
                 />
               );
             })
