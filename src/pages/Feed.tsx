@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import KnowledgePostCard from "@/components/KnowledgePostCard";
 import CreatePostDialog from "@/components/CreatePostDialog";
 import PostDetailModal from "@/components/PostDetailModal";
+import ThemeToggle from "@/components/ThemeToggle";
+import ActiveUsers from "@/components/ActiveUsers";
 
 interface KnowledgePost {
   id: string;
@@ -49,11 +51,21 @@ const Feed = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const updateLastActive = useCallback(async () => {
+    if (!user) return;
+    await supabase.rpc("update_user_last_active");
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       fetchPosts();
+      updateLastActive();
+      
+      // Update last_active every 2 minutes while on the page
+      const interval = setInterval(updateLastActive, 2 * 60 * 1000);
+      return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, updateLastActive]);
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -190,6 +202,7 @@ const Feed = () => {
               <Plus className="h-4 w-4 mr-2" />
               Share Knowledge
             </Button>
+            <ThemeToggle />
             <Button variant="outline" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -199,6 +212,9 @@ const Feed = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="mb-6">
+          <ActiveUsers />
+        </div>
         <div className="space-y-6 animate-fade-in">
           {posts.length === 0 ? (
             <div className="text-center py-12">
