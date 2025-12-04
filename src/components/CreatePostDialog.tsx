@@ -32,6 +32,7 @@ interface CreatePostDialogProps {
   onPostCreated: () => void;
   userId: string;
   preselectedCommunity?: string | null;
+  onCommunityCreated?: () => void;
 }
 
 const CreatePostDialog = ({
@@ -40,6 +41,7 @@ const CreatePostDialog = ({
   onPostCreated,
   userId,
   preselectedCommunity,
+  onCommunityCreated,
 }: CreatePostDialogProps) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -90,6 +92,7 @@ const CreatePostDialog = ({
       setNewCommunityName("");
       setShowNewCommunity(false);
       fetchCommunities();
+      onCommunityCreated?.();
     }
   };
 
