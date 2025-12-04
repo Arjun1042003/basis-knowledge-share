@@ -41,6 +41,7 @@ const Feed = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<KnowledgePost | null>(null);
   const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
+  const [communityRefreshTrigger, setCommunityRefreshTrigger] = useState(0);
 
   useEffect(() => {
     checkUser();
@@ -215,6 +216,7 @@ const Feed = () => {
           selectedCommunity={selectedCommunity}
           onSelectCommunity={setSelectedCommunity}
           userId={user?.id || ""}
+          refreshTrigger={communityRefreshTrigger}
         />
         
         <div className="flex-1 flex flex-col">
@@ -289,6 +291,7 @@ const Feed = () => {
           onPostCreated={fetchPosts}
           userId={user?.id || ""}
           preselectedCommunity={selectedCommunity}
+          onCommunityCreated={() => setCommunityRefreshTrigger(prev => prev + 1)}
         />
 
         {selectedPost && (

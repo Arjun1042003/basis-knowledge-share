@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import bristleconeLogo from "@/assets/bristlecone-logo.png";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -64,9 +65,16 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            BRISTLECONE
-          </h1>
+          <div className="flex items-center justify-center gap-4">
+            <img 
+              src={bristleconeLogo} 
+              alt="Bristlecone Logo" 
+              className="h-16 w-16 object-contain dark:brightness-110 dark:contrast-125"
+            />
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              BRISTLECONE
+            </h1>
+          </div>
           <p className="text-lg text-muted-foreground">Knowledge Sharing Community</p>
         </div>
 

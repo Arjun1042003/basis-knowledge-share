@@ -36,9 +36,10 @@ interface CommunitySidebarProps {
   selectedCommunity: string | null;
   onSelectCommunity: (communityId: string | null) => void;
   userId: string;
+  refreshTrigger?: number;
 }
 
-const CommunitySidebar = ({ selectedCommunity, onSelectCommunity, userId }: CommunitySidebarProps) => {
+const CommunitySidebar = ({ selectedCommunity, onSelectCommunity, userId, refreshTrigger }: CommunitySidebarProps) => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newCommunityName, setNewCommunityName] = useState("");
@@ -46,7 +47,7 @@ const CommunitySidebar = ({ selectedCommunity, onSelectCommunity, userId }: Comm
 
   useEffect(() => {
     fetchCommunities();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchCommunities = async () => {
     const { data, error } = await supabase
