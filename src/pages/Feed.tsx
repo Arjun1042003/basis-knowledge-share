@@ -10,6 +10,8 @@ import CreatePostDialog from "@/components/CreatePostDialog";
 import PostDetailModal from "@/components/PostDetailModal";
 import ThemeToggle from "@/components/ThemeToggle";
 import ActiveUsers from "@/components/ActiveUsers";
+import CommunitySidebar from "@/components/CommunitySidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 interface KnowledgePost {
   id: string;
@@ -18,6 +20,7 @@ interface KnowledgePost {
   technical_area: string;
   created_at: string;
   author_id: string;
+  community_id: string | null;
   profiles: {
     full_name: string;
   };
@@ -37,6 +40,7 @@ const Feed = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<KnowledgePost | null>(null);
+  const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
 
   useEffect(() => {
     checkUser();
@@ -61,11 +65,10 @@ const Feed = () => {
       fetchPosts();
       updateLastActive();
       
-      // Update last_active every 2 minutes while on the page
       const interval = setInterval(updateLastActive, 2 * 60 * 1000);
       return () => clearInterval(interval);
     }
-  }, [user, updateLastActive]);
+  }, [user, updateLastActive, selectedCommunity]);
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -77,7 +80,7 @@ const Feed = () => {
   };
 
   const fetchPosts = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("knowledge_posts")
       .select(`
         *,
@@ -86,6 +89,12 @@ const Feed = () => {
         )
       `)
       .order("created_at", { ascending: false });
+
+    if (selectedCommunity) {
+      query = query.eq("community_id", selectedCommunity);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast.error("Failed to load posts");
@@ -200,85 +209,99 @@ const Feed = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-10 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <svg className="h-6 w-6 text-primary-foreground" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L8 8h3v4H8l4 6 4-6h-3V8h3L12 2zm-1 14v6h2v-6h-2z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">BRISTLECONE</h1>
-              <p className="text-sm text-muted-foreground">Knowledge Hub</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Share Knowledge
-            </Button>
-            <ThemeToggle />
-            <Button variant="outline" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-6">
-          <ActiveUsers />
-        </div>
-        <div className="space-y-6 animate-fade-in">
-          {posts.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">No knowledge posts yet</p>
-              <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Be the first to share
-              </Button>
-            </div>
-          ) : (
-            posts.map((post) => {
-              const stats = postStats[post.id] || { likesCount: 0, commentsCount: 0, isLiked: false };
-              return (
-                <KnowledgePostCard 
-                  key={post.id} 
-                  post={post}
-                  currentUserId={user?.id}
-                  likesCount={stats.likesCount}
-                  commentsCount={stats.commentsCount}
-                  isLiked={stats.isLiked}
-                  onLike={() => handleLike(post.id)}
-                  onClick={() => setSelectedPost(post)}
-                  onDelete={() => handleDelete(post.id)}
-                />
-              );
-            })
-          )}
-        </div>
-      </main>
-
-      <CreatePostDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onPostCreated={fetchPosts}
-        userId={user?.id || ""}
-      />
-
-      {selectedPost && (
-        <PostDetailModal
-          open={!!selectedPost}
-          onOpenChange={(open) => !open && setSelectedPost(null)}
-          post={selectedPost}
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <CommunitySidebar
+          selectedCommunity={selectedCommunity}
+          onSelectCommunity={setSelectedCommunity}
           userId={user?.id || ""}
-          onUpdate={fetchPosts}
         />
-      )}
-    </div>
+        
+        <div className="flex-1 flex flex-col">
+          <header className="border-b border-border bg-card sticky top-0 z-10 shadow-sm">
+            <div className="px-4 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <SidebarTrigger className="mr-2" />
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                  <svg className="h-6 w-6 text-primary-foreground" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L8 8h3v4H8l4 6 4-6h-3V8h3L12 2zm-1 14v6h2v-6h-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">BRISTLECONE</h1>
+                  <p className="text-sm text-muted-foreground">Knowledge Hub</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Share Knowledge
+                </Button>
+                <ThemeToggle />
+                <Button variant="outline" onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 px-4 py-8 max-w-4xl mx-auto w-full">
+            <div className="mb-6">
+              <ActiveUsers />
+            </div>
+            <div className="space-y-6 animate-fade-in">
+              {posts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground mb-4">
+                    {selectedCommunity ? "No posts in this community yet" : "No knowledge posts yet"}
+                  </p>
+                  <Button onClick={() => setDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Be the first to share
+                  </Button>
+                </div>
+              ) : (
+                posts.map((post) => {
+                  const stats = postStats[post.id] || { likesCount: 0, commentsCount: 0, isLiked: false };
+                  return (
+                    <KnowledgePostCard 
+                      key={post.id} 
+                      post={post}
+                      currentUserId={user?.id}
+                      likesCount={stats.likesCount}
+                      commentsCount={stats.commentsCount}
+                      isLiked={stats.isLiked}
+                      onLike={() => handleLike(post.id)}
+                      onClick={() => setSelectedPost(post)}
+                      onDelete={() => handleDelete(post.id)}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </main>
+        </div>
+
+        <CreatePostDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onPostCreated={fetchPosts}
+          userId={user?.id || ""}
+          preselectedCommunity={selectedCommunity}
+        />
+
+        {selectedPost && (
+          <PostDetailModal
+            open={!!selectedPost}
+            onOpenChange={(open) => !open && setSelectedPost(null)}
+            post={selectedPost}
+            userId={user?.id || ""}
+            onUpdate={fetchPosts}
+          />
+        )}
+      </div>
+    </SidebarProvider>
   );
 };
 

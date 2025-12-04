@@ -12,6 +12,7 @@ interface KnowledgePostCardProps {
     technical_area: string;
     created_at: string;
     author_id: string;
+    community_id?: string | null;
     profiles: {
       full_name: string;
     };

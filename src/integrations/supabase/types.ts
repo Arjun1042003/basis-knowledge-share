@@ -14,9 +14,31 @@ export type Database = {
   }
   public: {
     Tables: {
+      communities: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       knowledge_posts: {
         Row: {
           author_id: string
+          community_id: string | null
           content: string
           created_at: string
           id: string
@@ -26,6 +48,7 @@ export type Database = {
         }
         Insert: {
           author_id: string
+          community_id?: string | null
           content: string
           created_at?: string
           id?: string
@@ -35,6 +58,7 @@ export type Database = {
         }
         Update: {
           author_id?: string
+          community_id?: string | null
           content?: string
           created_at?: string
           id?: string
@@ -48,6 +72,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_posts_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
             referencedColumns: ["id"]
           },
         ]
