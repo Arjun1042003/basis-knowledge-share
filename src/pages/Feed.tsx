@@ -12,6 +12,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import ActiveUsers from "@/components/ActiveUsers";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import bristleconeLogo from "@/assets/bristlecone-logo.png";
 
 interface KnowledgePost {
   id: string;
@@ -224,11 +225,11 @@ const Feed = () => {
             <div className="px-4 py-4 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <SidebarTrigger className="mr-2" />
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                  <svg className="h-6 w-6 text-primary-foreground" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2L8 8h3v4H8l4 6 4-6h-3V8h3L12 2zm-1 14v6h2v-6h-2z" />
-                  </svg>
-                </div>
+                <img 
+                  src={bristleconeLogo} 
+                  alt="Bristlecone Logo" 
+                  className="h-12 w-12 object-contain dark:brightness-110 dark:contrast-125"
+                />
                 <div>
                   <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">BRISTLECONE</h1>
                   <p className="text-sm text-muted-foreground">Knowledge Hub</p>

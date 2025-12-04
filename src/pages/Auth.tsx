@@ -69,7 +69,7 @@ const Auth = () => {
             <img 
               src={bristleconeLogo} 
               alt="Bristlecone Logo" 
-              className="h-16 w-16 object-contain dark:brightness-110 dark:contrast-125"
+              className="h-24 w-24 object-contain dark:brightness-110 dark:contrast-125"
             />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               BRISTLECONE
