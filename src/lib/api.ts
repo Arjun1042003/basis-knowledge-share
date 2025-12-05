@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://10.30.28.22:8080";
+const API_BASE_URL = "http://localhost:8080";
 
 interface LoginResponse {
   message: string;
