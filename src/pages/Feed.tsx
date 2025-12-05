@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { api, Post } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { LogOut, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -9,195 +8,94 @@ import KnowledgePostCard from "@/components/KnowledgePostCard";
 import CreatePostDialog from "@/components/CreatePostDialog";
 import PostDetailModal from "@/components/PostDetailModal";
 import ThemeToggle from "@/components/ThemeToggle";
-import ActiveUsers from "@/components/ActiveUsers";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import bristleconeLogo from "@/assets/bristlecone-logo.png";
 
-interface KnowledgePost {
-  id: string;
-  title: string;
-  content: string;
-  technical_area: string;
-  created_at: string;
-  author_id: string;
-  community_id: string | null;
-  profiles: {
-    full_name: string;
-  };
-}
-
-interface PostStats {
-  likesCount: number;
-  commentsCount: number;
-  isLiked: boolean;
-}
-
 const Feed = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [posts, setPosts] = useState<KnowledgePost[]>([]);
-  const [postStats, setPostStats] = useState<Record<string, PostStats>>({});
+  const [userId, setUserId] = useState<number | null>(null);
+  const [username, setUsername] = useState<string>("");
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<KnowledgePost | null>(null);
-  const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedCommunity, setSelectedCommunity] = useState<number | null>(null);
   const [communityRefreshTrigger, setCommunityRefreshTrigger] = useState(0);
 
   useEffect(() => {
     checkUser();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
-        navigate("/auth");
-      }
-    });
+  }, []);
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const updateLastActive = useCallback(async () => {
-    if (!user) return;
-    await supabase.rpc("update_user_last_active");
-  }, [user]);
+  const updateStatus = useCallback(async () => {
+    if (!userId) return;
+    try {
+      await api.updateStatus("online");
+    } catch (error) {
+      console.error("Failed to update status:", error);
+    }
+  }, [userId]);
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       fetchPosts();
-      updateLastActive();
+      updateStatus();
       
-      const interval = setInterval(updateLastActive, 2 * 60 * 1000);
+      const interval = setInterval(updateStatus, 2 * 60 * 1000);
       return () => clearInterval(interval);
     }
-  }, [user, updateLastActive, selectedCommunity]);
+  }, [userId, updateStatus, selectedCommunity]);
 
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setUser(session?.user ?? null);
-    if (!session?.user) {
+  const checkUser = () => {
+    const storedUserId = localStorage.getItem("user_id");
+    const storedUsername = localStorage.getItem("username");
+    
+    if (!storedUserId || !storedUsername) {
       navigate("/auth");
+      return;
     }
+    
+    setUserId(Number(storedUserId));
+    setUsername(storedUsername);
     setLoading(false);
   };
 
   const fetchPosts = async () => {
-    let query = supabase
-      .from("knowledge_posts")
-      .select(`
-        *,
-        profiles (
-          full_name
-        )
-      `)
-      .order("created_at", { ascending: false });
-
-    if (selectedCommunity) {
-      query = query.eq("community_id", selectedCommunity);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
+    try {
+      const data = await api.getFeed();
+      let filteredPosts = data;
+      
+      if (selectedCommunity !== null) {
+        filteredPosts = data.filter(p => p.community_id === selectedCommunity);
+      }
+      
+      setPosts(filteredPosts);
+    } catch (error: any) {
       toast.error("Failed to load posts");
       console.error(error);
-    } else {
-      setPosts(data || []);
-      if (data && user) {
-        fetchPostStats(data.map(p => p.id));
-      }
     }
   };
 
-  const fetchPostStats = async (postIds: string[]) => {
-    if (!user) return;
-
-    const stats: Record<string, PostStats> = {};
-
-    for (const postId of postIds) {
-      const { count: likesCount } = await supabase
-        .from("post_likes")
-        .select("*", { count: "exact", head: true })
-        .eq("post_id", postId);
-
-      const { count: commentsCount } = await supabase
-        .from("post_comments")
-        .select("*", { count: "exact", head: true })
-        .eq("post_id", postId);
-
-      const { data: likeData } = await supabase
-        .from("post_likes")
-        .select("id")
-        .eq("post_id", postId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      stats[postId] = {
-        likesCount: likesCount || 0,
-        commentsCount: commentsCount || 0,
-        isLiked: !!likeData,
-      };
-    }
-
-    setPostStats(stats);
-  };
-
-  const handleLike = async (postId: string) => {
-    if (!user) return;
-
-    const currentStats = postStats[postId] || { likesCount: 0, commentsCount: 0, isLiked: false };
-
-    if (currentStats.isLiked) {
-      await supabase
-        .from("post_likes")
-        .delete()
-        .eq("post_id", postId)
-        .eq("user_id", user.id);
-
-      setPostStats({
-        ...postStats,
-        [postId]: {
-          ...currentStats,
-          isLiked: false,
-          likesCount: currentStats.likesCount - 1,
-        },
-      });
-    } else {
-      await supabase.from("post_likes").insert({
-        post_id: postId,
-        user_id: user.id,
-      });
-
-      setPostStats({
-        ...postStats,
-        [postId]: {
-          ...currentStats,
-          isLiked: true,
-          likesCount: currentStats.likesCount + 1,
-        },
-      });
-    }
-  };
-
-  const handleDelete = async (postId: string) => {
+  const handleDelete = async (postId: number) => {
     if (!confirm("Are you sure you want to delete this post?")) return;
     
-    const { error } = await supabase
-      .from("knowledge_posts")
-      .delete()
-      .eq("id", postId);
-
-    if (error) {
-      toast.error("Failed to delete post");
-      console.error(error);
-    } else {
+    try {
+      await api.deletePost(postId);
       toast.success("Post deleted successfully");
       fetchPosts();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete post");
     }
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await api.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("username");
     toast.success("Signed out successfully");
     navigate("/auth");
   };
@@ -216,7 +114,6 @@ const Feed = () => {
         <CommunitySidebar
           selectedCommunity={selectedCommunity}
           onSelectCommunity={setSelectedCommunity}
-          userId={user?.id || ""}
           refreshTrigger={communityRefreshTrigger}
         />
         
@@ -236,6 +133,7 @@ const Feed = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
+                <span className="text-sm text-muted-foreground">Welcome, {username}</span>
                 <Button onClick={() => setDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Share Knowledge
@@ -250,9 +148,6 @@ const Feed = () => {
           </header>
 
           <main className="flex-1 px-4 py-8 max-w-4xl mx-auto w-full">
-            <div className="mb-6">
-              <ActiveUsers />
-            </div>
             <div className="space-y-6 animate-fade-in">
               {posts.length === 0 ? (
                 <div className="text-center py-12">
@@ -265,22 +160,15 @@ const Feed = () => {
                   </Button>
                 </div>
               ) : (
-                posts.map((post) => {
-                  const stats = postStats[post.id] || { likesCount: 0, commentsCount: 0, isLiked: false };
-                  return (
-                    <KnowledgePostCard 
-                      key={post.id} 
-                      post={post}
-                      currentUserId={user?.id}
-                      likesCount={stats.likesCount}
-                      commentsCount={stats.commentsCount}
-                      isLiked={stats.isLiked}
-                      onLike={() => handleLike(post.id)}
-                      onClick={() => setSelectedPost(post)}
-                      onDelete={() => handleDelete(post.id)}
-                    />
-                  );
-                })
+                posts.map((post) => (
+                  <KnowledgePostCard 
+                    key={post.id} 
+                    post={post}
+                    currentUserId={userId}
+                    onClick={() => setSelectedPost(post)}
+                    onDelete={() => handleDelete(post.id)}
+                  />
+                ))
               )}
             </div>
           </main>
@@ -290,7 +178,6 @@ const Feed = () => {
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           onPostCreated={fetchPosts}
-          userId={user?.id || ""}
           preselectedCommunity={selectedCommunity}
           onCommunityCreated={() => setCommunityRefreshTrigger(prev => prev + 1)}
         />
@@ -300,8 +187,6 @@ const Feed = () => {
             open={!!selectedPost}
             onOpenChange={(open) => !open && setSelectedPost(null)}
             post={selectedPost}
-            userId={user?.id || ""}
-            onUpdate={fetchPosts}
           />
         )}
       </div>

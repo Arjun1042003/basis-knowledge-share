@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import {
   Sidebar,
   SidebarContent,
@@ -26,20 +26,17 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 interface Community {
-  id: string;
+  id: number;
   name: string;
-  created_by: string;
-  created_at: string;
 }
 
 interface CommunitySidebarProps {
-  selectedCommunity: string | null;
-  onSelectCommunity: (communityId: string | null) => void;
-  userId: string;
+  selectedCommunity: number | null;
+  onSelectCommunity: (communityId: number | null) => void;
   refreshTrigger?: number;
 }
 
-const CommunitySidebar = ({ selectedCommunity, onSelectCommunity, userId, refreshTrigger }: CommunitySidebarProps) => {
+const CommunitySidebar = ({ selectedCommunity, onSelectCommunity, refreshTrigger }: CommunitySidebarProps) => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newCommunityName, setNewCommunityName] = useState("");
@@ -50,15 +47,21 @@ const CommunitySidebar = ({ selectedCommunity, onSelectCommunity, userId, refres
   }, [refreshTrigger]);
 
   const fetchCommunities = async () => {
-    const { data, error } = await supabase
-      .from("communities")
-      .select("*")
-      .order("created_at", { ascending: true });
-
-    if (error) {
+    // The Flask API doesn't have a GET /communities endpoint
+    // Communities come from the feed posts' community_id
+    // For now, we'll extract unique communities from posts
+    try {
+      const posts = await api.getFeed();
+      const uniqueCommunities = new Map<number, string>();
+      posts.forEach(post => {
+        if (post.community_id && !uniqueCommunities.has(post.community_id)) {
+          // We don't have community names from the feed, so we'll use IDs
+          uniqueCommunities.set(post.community_id, `Community ${post.community_id}`);
+        }
+      });
+      setCommunities(Array.from(uniqueCommunities.entries()).map(([id, name]) => ({ id, name })));
+    } catch (error) {
       console.error("Error fetching communities:", error);
-    } else {
-      setCommunities(data || []);
     }
   };
 
@@ -67,26 +70,15 @@ const CommunitySidebar = ({ selectedCommunity, onSelectCommunity, userId, refres
     if (!newCommunityName.trim()) return;
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from("communities")
-      .insert({
-        name: newCommunityName.trim(),
-        created_by: userId,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error("Failed to create community");
-      console.error(error);
-    } else {
+    try {
+      const result = await api.createCommunity(newCommunityName.trim());
       toast.success("Community created!");
       setNewCommunityName("");
       setCreateDialogOpen(false);
-      fetchCommunities();
-      if (data) {
-        onSelectCommunity(data.id);
-      }
+      setCommunities(prev => [...prev, { id: result.id, name: newCommunityName.trim() }]);
+      onSelectCommunity(result.id);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create community");
     }
     setLoading(false);
   };
@@ -170,7 +162,7 @@ const CommunitySidebar = ({ selectedCommunity, onSelectCommunity, userId, refres
               <Label htmlFor="communityName">Community Name</Label>
               <Input
                 id="communityName"
-                placeholder="e.g., SAP HANA Experts"
+                placeholder="e.g., Tech Experts"
                 value={newCommunityName}
                 onChange={(e) => setNewCommunityName(e.target.value)}
                 required

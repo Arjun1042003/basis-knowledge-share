@@ -1,27 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, MessageCircle, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Post } from "@/lib/api";
 
 interface KnowledgePostCardProps {
-  post: {
-    id: string;
-    title: string;
-    content: string;
-    technical_area: string;
-    created_at: string;
-    author_id: string;
-    community_id?: string | null;
-    profiles: {
-      full_name: string;
-    };
-  };
-  currentUserId?: string;
-  likesCount?: number;
-  commentsCount?: number;
-  isLiked?: boolean;
-  onLike?: () => void;
+  post: Post;
+  currentUserId?: number | null;
   onClick?: () => void;
   onDelete?: () => void;
 }
@@ -29,14 +14,11 @@ interface KnowledgePostCardProps {
 const KnowledgePostCard = ({ 
   post, 
   currentUserId,
-  likesCount = 0, 
-  commentsCount = 0,
-  isLiked = false,
-  onLike,
   onClick,
   onDelete
 }: KnowledgePostCardProps) => {
-  const isOwner = currentUserId === post.author_id;
+  const isOwner = currentUserId === post.user_id;
+  
   return (
     <Card 
       className="hover:shadow-lg transition-all duration-300 cursor-pointer group border-border/50 hover:border-primary/30"
@@ -54,7 +36,7 @@ const KnowledgePostCard = ({
             </CardTitle>
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
-                {post.profiles.full_name}
+                {post.username}
               </span>
               <span>•</span>
               <span>
@@ -62,41 +44,13 @@ const KnowledgePostCard = ({
               </span>
             </div>
           </div>
-          <Badge 
-            variant="secondary" 
-            className="bg-info/10 text-info border-info/20 hover:bg-info/20 transition-colors"
-          >
-            {post.technical_area}
-          </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-foreground whitespace-pre-wrap line-clamp-3">
           {post.content}
         </p>
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-3">
-            <Button
-              variant={isLiked ? "default" : "ghost"}
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onLike?.();
-              }}
-              className={`gap-2 ${isLiked ? '' : 'hover:text-primary'}`}
-            >
-              <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
-              <span>{likesCount}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2 hover:text-info"
-            >
-              <MessageCircle className="h-4 w-4" />
-              <span>{commentsCount}</span>
-            </Button>
-          </div>
+        <div className="flex items-center justify-end pt-2">
           {isOwner && (
             <Button
               variant="ghost"

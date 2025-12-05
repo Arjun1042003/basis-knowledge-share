@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
 interface Community {
-  id: string;
+  id: number;
   name: string;
 }
 
@@ -30,8 +30,7 @@ interface CreatePostDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPostCreated: () => void;
-  userId: string;
-  preselectedCommunity?: string | null;
+  preselectedCommunity?: number | null;
   onCommunityCreated?: () => void;
 }
 
@@ -39,13 +38,11 @@ const CreatePostDialog = ({
   open,
   onOpenChange,
   onPostCreated,
-  userId,
   preselectedCommunity,
   onCommunityCreated,
 }: CreatePostDialogProps) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [technicalArea, setTechnicalArea] = useState("");
   const [communityId, setCommunityId] = useState<string>("");
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,43 +53,40 @@ const CreatePostDialog = ({
     if (open) {
       fetchCommunities();
       if (preselectedCommunity) {
-        setCommunityId(preselectedCommunity);
+        setCommunityId(String(preselectedCommunity));
       }
     }
   }, [open, preselectedCommunity]);
 
   const fetchCommunities = async () => {
-    const { data, error } = await supabase
-      .from("communities")
-      .select("id, name")
-      .order("name", { ascending: true });
-
-    if (!error && data) {
-      setCommunities(data);
+    try {
+      const posts = await api.getFeed();
+      const uniqueCommunities = new Map<number, string>();
+      posts.forEach(post => {
+        if (post.community_id && !uniqueCommunities.has(post.community_id)) {
+          uniqueCommunities.set(post.community_id, `Community ${post.community_id}`);
+        }
+      });
+      setCommunities(Array.from(uniqueCommunities.entries()).map(([id, name]) => ({ id, name })));
+    } catch (error) {
+      console.error("Error fetching communities:", error);
     }
   };
 
   const handleCreateCommunity = async () => {
     if (!newCommunityName.trim()) return;
 
-    const { data, error } = await supabase
-      .from("communities")
-      .insert({
-        name: newCommunityName.trim(),
-        created_by: userId,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error("Failed to create community");
-    } else if (data) {
+    try {
+      const result = await api.createCommunity(newCommunityName.trim());
       toast.success("Community created!");
-      setCommunityId(data.id);
+      const newCommunity = { id: result.id, name: newCommunityName.trim() };
+      setCommunities(prev => [...prev, newCommunity]);
+      setCommunityId(String(result.id));
       setNewCommunityName("");
       setShowNewCommunity(false);
-      fetchCommunities();
       onCommunityCreated?.();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create community");
     }
   };
 
@@ -100,32 +94,22 @@ const CreatePostDialog = ({
     e.preventDefault();
     
     if (!communityId) {
-      toast.error("Please select a community");
+      toast.error("Please select or create a community");
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = await supabase.from("knowledge_posts").insert({
-        author_id: userId,
-        title,
-        content,
-        technical_area: technicalArea,
-        community_id: communityId,
-      });
-
-      if (error) throw error;
-
+      await api.createPost(title, content, Number(communityId));
       toast.success("Knowledge shared successfully!");
       setTitle("");
       setContent("");
-      setTechnicalArea("");
       setCommunityId("");
       onOpenChange(false);
       onPostCreated();
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to create post");
     } finally {
       setLoading(false);
     }
@@ -147,11 +131,11 @@ const CreatePostDialog = ({
               <div className="flex gap-2">
                 <Select value={communityId} onValueChange={setCommunityId}>
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select a community" />
+                    <SelectValue placeholder="Select a community or create new" />
                   </SelectTrigger>
                   <SelectContent>
                     {communities.map((community) => (
-                      <SelectItem key={community.id} value={community.id}>
+                      <SelectItem key={community.id} value={String(community.id)}>
                         {community.name}
                       </SelectItem>
                     ))}
@@ -191,19 +175,9 @@ const CreatePostDialog = ({
             <Label htmlFor="title">Title</Label>
             <Input
               id="title"
-              placeholder="e.g., SAP HANA Performance Optimization Tips"
+              placeholder="e.g., Performance Optimization Tips"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="technicalArea">Technical Area</Label>
-            <Input
-              id="technicalArea"
-              placeholder="e.g., HANA, ABAP, Fiori, S/4HANA"
-              value={technicalArea}
-              onChange={(e) => setTechnicalArea(e.target.value)}
               required
             />
           </div>

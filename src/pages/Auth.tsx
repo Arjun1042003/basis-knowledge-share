@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,20 +11,15 @@ import bristleconeLogo from "@/assets/bristlecone-logo.png";
 const Auth = () => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const validateEmail = (email: string): boolean => {
-    return email.toLowerCase().endsWith("@bristlecone.com");
-  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateEmail(email)) {
-      toast.error("Only @bristlecone.com email addresses are allowed");
+    if (!username.trim() || !password.trim()) {
+      toast.error("Please enter username and password");
       return;
     }
     
@@ -32,27 +27,15 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
+        const response = await api.login(username, password);
+        localStorage.setItem("user_id", String(response.user_id));
+        localStorage.setItem("username", username);
         toast.success("Welcome back!");
         navigate("/");
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-            },
-            emailRedirectTo: `${window.location.origin}/`,
-          },
-        });
-        if (error) throw error;
-        toast.success("Account created successfully!");
-        navigate("/");
+        await api.signup(username, password);
+        toast.success("Account created successfully! Please sign in.");
+        setIsLogin(true);
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -89,30 +72,16 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAuth} className="space-y-4">
-              {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required={!isLogin}
-                  />
-                </div>
-              )}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@bristlecone.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                 />
-                <p className="text-xs text-muted-foreground">Only @bristlecone.com emails allowed</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
